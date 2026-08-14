@@ -14,7 +14,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Lit Radar <onboarding@resend.dev>';
-const TOP_N = 10;
+const TOP_N = 7;               // upper cap — never send more than this, even if many pass the threshold
+const MIN_SCORE = 0.6;         // only papers scoring at or above this get sent (0 to 1, higher = stricter)
 const LOOKBACK_DAYS = 35;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -141,20 +142,33 @@ async function embed(text) {
 
 // ---------- email ----------
 
+// Escapes text pulled from external sources (paper titles/abstracts) and
+// from user-submitted form fields (project description) before it's
+// dropped into HTML, so neither can inject markup into the email.
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendDigest(project, papers) {
   const rows = papers.map(p => `
     <tr>
       <td style="padding:16px 0;border-top:1px solid #e5e0d3;">
-        <div style="font-family:monospace;font-size:11px;color:#b8912f;text-transform:uppercase;letter-spacing:.06em;">${p.source} · ${Math.round(p.score * 100)}% match</div>
-        <div style="font-size:17px;font-weight:600;margin:4px 0 6px;"><a href="${p.url}" style="color:#10161c;text-decoration:none;">${p.title}</a></div>
-        <div style="font-size:13px;color:#666;margin-bottom:6px;">${p.authors || 'Authors unavailable'}</div>
-        <div style="font-size:14px;color:#333;line-height:1.5;">${p.abstract.slice(0, 320)}${p.abstract.length > 320 ? '…' : ''}</div>
+        <div style="font-family:monospace;font-size:11px;color:#b8912f;text-transform:uppercase;letter-spacing:.06em;">${escapeHtml(p.source)} · ${Math.round(p.score * 100)}% match</div>
+        <div style="font-size:17px;font-weight:600;margin:4px 0 6px;"><a href="${encodeURI(p.url)}" style="color:#10161c;text-decoration:none;">${escapeHtml(p.title)}</a></div>
+        <div style="font-size:13px;color:#666;margin-bottom:6px;">${escapeHtml(p.authors) || 'Authors unavailable'}</div>
+        <div style="font-size:14px;color:#333;line-height:1.5;">${escapeHtml(p.abstract.slice(0, 320))}${p.abstract.length > 320 ? '…' : ''}</div>
       </td>
     </tr>`).join('');
 
+  const shortDesc = escapeHtml(project.description.slice(0, 60)) + (project.description.length > 60 ? '…' : '');
   const html = `
   <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-    <h2 style="font-family:serif;">This month's papers for "${project.description.slice(0, 60)}${project.description.length > 60 ? '…' : ''}"</h2>
+    <h2 style="font-family:serif;">This month's papers for "${shortDesc}"</h2>
     <table style="width:100%;border-collapse:collapse;">${rows}</table>
     <p style="font-size:12px;color:#999;margin-top:24px;">Ranked against your project description using local embeddings. Reply to whoever manages this tool to update your keywords.</p>
   </div>`;
@@ -217,7 +231,12 @@ async function processProject(project) {
     scored.push({ ...p, score: cosineSim(projectVec, vec) });
   }
   scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, TOP_N);
+  const top = scored.filter(p => p.score >= MIN_SCORE).slice(0, TOP_N);
+
+  if (top.length === 0) {
+    console.log(`[${project.email}] ${scored.length} candidates found, none met the ${MIN_SCORE} relevance threshold`);
+    return;
+  }
 
   await sendDigest(project, top);
 

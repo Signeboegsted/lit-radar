@@ -62,8 +62,16 @@ Go to the **Actions** tab in your repo → **Monthly literature digest** → **R
 
 Once that works, it's fully automated — the workflow runs itself on the 1st of every month, no further action needed from you.
 
+## Security notes
+
+- The Supabase key in `index.html` is the public "anon" key — safe to expose. Row Level Security (in `schema.sql`) restricts it to *inserting* new projects only; it can't read or change existing entries.
+- Real credentials (Supabase service key, Resend key) live only in GitHub's encrypted Secrets — never in the code.
+- The monthly email escapes all text (paper data and your project description) before inserting it into HTML, so nothing submitted through the form can inject markup into the email.
+- The signup form has a basic honeypot field to filter out simple spam bots. If you want to restrict signups to only your organization's email domain (e.g. `@yourlab.dk`), that's a small addition to `schema.sql` — ask and it can be added.
+
 ## Notes
 
 - The first run for any project will likely email more borderline matches, since there's no history yet to compare against — quality settles as the tool learns what's actually new each month (it never re-sends the same paper twice).
 - To adjust how far back it searches, or how many papers it sends, edit `LOOKBACK_DAYS` and `TOP_N` near the top of `scripts/search-and-notify.mjs`.
+- Only papers scoring at or above `MIN_SCORE` (also near the top of that file, default `0.6` — a strict, "very on-topic only" bar) get emailed, capped at `TOP_N` (default `7`). So some months you might get 1 paper, other months 7, or occasionally none if nothing new is a strong enough match. If digests feel too sparse, lower the number (e.g. `0.5`); if borderline stuff is still getting through, raise it further (e.g. `0.7`). There's no universally "correct" value — it depends on your field and how detailed your project description is, so expect to adjust it after seeing a couple of real runs.
 - Nothing here costs money at the scale of ~10 users doing one search a month. If you ever want Claude to write a one-line "why this is relevant" note per paper instead of just a similarity score, that's a small addition to the script — ask and it can be added.
