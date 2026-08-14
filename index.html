@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lit Radar — Monthly literature alerts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #10161c;
+    --ink-soft: #2b3540;
+    --paper: #f3efe4;
+    --paper-line: #d9d2bd;
+    --gold: #b8912f;
+    --gold-bright: #e0b043;
+    --green-ok: #4f7a5c;
+    --red-err: #a8483a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Source Sans 3', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 64px 20px 40px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: var(--gold-bright);
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow .dot{
+    width:6px;height:6px;border-radius:50%;
+    background: var(--gold-bright);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:.35; transform:scale(.7);}
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size: clamp(32px, 5vw, 52px);
+    line-height:1.05;
+    margin: 0 0 12px;
+    max-width: 720px;
+    text-align:center;
+  }
+  h1 em{
+    font-style: italic;
+    font-weight:500;
+    color: var(--gold-bright);
+  }
+  .sub{
+    max-width: 520px;
+    text-align:center;
+    color: #b9bfc6;
+    font-size:16px;
+    line-height:1.55;
+    margin-bottom: 44px;
+  }
+
+  /* the card-catalog form */
+  .card{
+    width: 100%;
+    max-width: 620px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 3px;
+    position: relative;
+    padding: 40px 40px 34px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.5);
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    top:0; left:56px;
+    width:26px; height:14px;
+    background: var(--ink);
+    border-radius: 0 0 12px 12px;
+  }
+  .card-index{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    color: var(--gold);
+    text-transform: uppercase;
+    display:flex;
+    justify-content:space-between;
+    border-bottom: 1px solid var(--paper-line);
+    padding-bottom: 14px;
+    margin-bottom: 26px;
+  }
+  label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: var(--ink-soft);
+    margin-bottom:8px;
+  }
+  .field{ margin-bottom: 22px; }
+  .hint{
+    font-size: 13px;
+    color: #6b6455;
+    margin-top: 6px;
+    line-height:1.4;
+  }
+  input, textarea{
+    width:100%;
+    font-family:'Source Sans 3', sans-serif;
+    font-size:16px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--paper-line);
+    padding: 8px 2px 10px;
+    outline: none;
+    resize: vertical;
+  }
+  textarea{ min-height: 84px; }
+  input:focus, textarea:focus{
+    border-bottom: 1px solid var(--gold);
+  }
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 520px){
+    .row2{ grid-template-columns: 1fr; }
+    .card{ padding: 32px 24px 28px; }
+  }
+  button{
+    width:100%;
+    margin-top: 10px;
+    padding: 15px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing:.1em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 2px;
+    cursor:pointer;
+    transition: background .15s ease;
+  }
+  button:hover{ background: #2b3540; }
+  button:disabled{ opacity:.5; cursor:default; }
+
+  .status{
+    margin-top: 16px;
+    font-size: 14px;
+    font-family:'IBM Plex Mono', monospace;
+    display:none;
+  }
+  .status.ok{ color: var(--green-ok); display:block; }
+  .status.err{ color: var(--red-err); display:block; }
+
+  footer{
+    margin-top: 40px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #6b7480;
+    text-align:center;
+    max-width: 500px;
+    line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow"><span class="dot"></span> scans on the 1st of every month</div>
+  <h1>Tell it what you're<br/><em>looking for.</em><br/>It reads the literature for you.</h1>
+  <p class="sub">
+    Register a project once. Each month, Lit Radar searches Semantic Scholar, arXiv, CrossRef and PubMed for new work, ranks it against your description, and emails you the ten most relevant papers.
+  </p>
+
+  <div class="card">
+    <div class="card-index">
+      <span>New entry</span>
+      <span id="todayIndex">—</span>
+    </div>
+
+    <form id="signupForm">
+      <div class="row2">
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" placeholder="Jane Doe" required />
+        </div>
+        <div class="field">
+          <label for="email">Email — where the digest goes</label>
+          <input id="email" name="email" type="email" placeholder="you@lab.dk" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="description">Project description</label>
+        <textarea id="description" name="description" placeholder="e.g. Investigating how gut microbiome composition affects response to immunotherapy in melanoma patients." required></textarea>
+        <div class="hint">A sentence or two is enough — this is what new papers get compared against for relevance.</div>
+      </div>
+
+      <div class="field">
+        <label for="keywords">Key terms</label>
+        <input id="keywords" name="keywords" type="text" placeholder="microbiome, immunotherapy, melanoma, checkpoint inhibitor" required />
+        <div class="hint">Comma-separated. Used to narrow the initial database search.</div>
+      </div>
+
+      <button type="submit" id="submitBtn">Register project</button>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+
+  <footer>
+    No account needed. Update or remove your project any time by emailing whoever set this up for your team.
+  </footer>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+  // ---- SETUP: replace these two values with your own Supabase project's
+  // URL and public "anon" key (Project Settings → API in Supabase).
+  // The anon key is safe to expose in frontend code — it only allows
+  // what your Row Level Security rules permit (see schema.sql).
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  document.getElementById('todayIndex').textContent =
+    new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }).toUpperCase();
+
+  const form = document.getElementById('signupForm');
+  const statusEl = document.getElementById('status');
+  const btn = document.getElementById('submitBtn');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = 'Registering…';
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+
+    const payload = {
+      name: document.getElementById('name').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      keywords: document.getElementById('keywords').value
+        .split(',').map(k => k.trim()).filter(Boolean),
+    };
+
+    const { error } = await supabase.from('projects').insert(payload);
+
+    if (error) {
+      statusEl.textContent = 'Something went wrong — please try again or contact whoever set this up.';
+      statusEl.className = 'status err';
+      console.error(error);
+    } else {
+      statusEl.textContent = `Registered. Your first digest arrives with next month's scan.`;
+      statusEl.className = 'status ok';
+      form.reset();
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Register project';
+  });
+</script>
+</body>
+</html>
