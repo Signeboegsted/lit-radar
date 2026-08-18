@@ -15,8 +15,8 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Lit Radar <onboarding@resend.dev>';
 const TOP_N = 7;               // upper cap — never send more than this, even if many pass the threshold
-const MIN_SCORE = 0.6;         // only papers scoring at or above this get sent (0 to 1, higher = stricter)
-const LOOKBACK_DAYS = 35;
+const MIN_SCORE = 0.1;         // only papers scoring at or above this get sent (0 to 1, higher = stricter)
+const LOOKBACK_DAYS = 32;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
