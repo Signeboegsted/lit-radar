@@ -231,7 +231,14 @@ async function processProject(project) {
     const vec = await embed(`${p.title}. ${p.abstract}`);
     scored.push({ ...p, score: cosineSim(projectVec, vec) });
   }
-  scored.sort((a, b) => b.score - a.score);
+    scored.sort((a, b) => b.score - a.score);
+
+  // Debug: print every candidate with its score, so you can see exactly
+  // what was found and how it scored. Remove this block once you're
+  // happy with how MIN_SCORE is tuned.
+  console.log(`[${project.email}] all candidates and scores:`);
+  scored.forEach(p => console.log(`  ${p.score.toFixed(3)}  ${p.title}`));
+
   const top = scored.filter(p => p.score >= MIN_SCORE).slice(0, TOP_N);
 
   if (top.length === 0) {
