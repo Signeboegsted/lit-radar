@@ -15,7 +15,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Lit Radar <onboarding@resend.dev>';
 const TOP_N = 7;               // upper cap — never send more than this, even if many pass the threshold
-const MIN_SCORE = 0.1;         // only papers scoring at or above this get sent (0 to 1, higher = stricter)
+const MIN_SCORE = 0.5;         // only papers scoring at or above this get sent (0 to 1, higher = stricter)
 const LOOKBACK_DAYS = 32;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -41,7 +41,8 @@ function cosineSim(a, b) {
 // ---------- source: Semantic Scholar ----------
 
 async function searchSemanticScholar(query, sinceDate) {
-  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&fields=title,abstract,authors,url,externalIds,publicationDate&limit=50`;
+  const today = new Date().toISOString().split('T')[0];
+  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&fields=title,abstract,authors,url,externalIds,publicationDate&publicationDateOrYear=${sinceDate}:${today}&limit=100`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
