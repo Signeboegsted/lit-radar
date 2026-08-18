@@ -232,21 +232,33 @@ async function processProject(project) {
     return;
   }
 
+  // Counts how many of your specific keyword phrases actually appear in
+  // a paper's title/abstract. General topic overlap (embeddings alone)
+  // isn't enough evidence of real relevance — a paper can share broad
+  // vocabulary without being about your specific angle at all. Literal
+  // matches on your distinctive terms are a much stronger relevance signal.
+  function keywordMatchCount(text, keywords) {
+    const lower = text.toLowerCase();
+    return keywords.filter(kw => lower.includes(kw.toLowerCase())).length;
+  }
+
   const projectVec = await embed(project.description);
   const scored = [];
   for (const p of fresh) {
     const vec = await embed(`${p.title}. ${p.abstract}`);
-    scored.push({ ...p, score: cosineSim(projectVec, vec) });
+    const semScore = cosineSim(projectVec, vec);
+    const matches = keywordMatchCount(`${p.title} ${p.abstract}`, project.keywords);
+    const finalScore = semScore + Math.min(matches, 4) * 0.05;
+    scored.push({ ...p, score: finalScore, semScore, keywordMatches: matches });
   }
-    scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score);
 
-  // Debug: print every candidate with its score, so you can see exactly
-  // what was found and how it scored. Remove this block once you're
-  // happy with how MIN_SCORE is tuned.
   console.log(`[${project.email}] all candidates and scores:`);
-  scored.forEach(p => console.log(`  ${p.score.toFixed(3)}  ${p.title}`));
+  scored.forEach(p => console.log(`  score=${p.score.toFixed(3)} (sem=${p.semScore.toFixed(3)}, kw-matches=${p.keywordMatches})  ${p.title}`));
 
-  const top = scored.filter(p => p.score >= MIN_SCORE).slice(0, TOP_N);
+  const top = scored
+    .filter(p => p.score >= MIN_SCORE && p.keywordMatches >= 1)
+    .slice(0, TOP_N);
 
   if (top.length === 0) {
     console.log(`[${project.email}] ${scored.length} candidates found, none met the ${MIN_SCORE} relevance threshold`);
