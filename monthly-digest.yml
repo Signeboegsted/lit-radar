@@ -1,4 +1,4 @@
-name: Monthly literature digest
+name: .github/workflows/monthly-digest.yml
 
 on:
   schedule:
