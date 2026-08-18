@@ -193,15 +193,22 @@ async function sendDigest(project, papers) {
 
 async function processProject(project) {
   const sinceDate = daysAgoISO(LOOKBACK_DAYS);
-  const query = project.keywords.join(' ');
 
-  const [s2, arxiv, pubmed] = await Promise.all([
-    searchSemanticScholar(query, sinceDate).catch(() => []),
-    searchArxiv(query, sinceDate).catch(() => []),
-    searchPubmed(query, sinceDate).catch(() => []),
-  ]);
-
-  const candidates = [...s2, ...arxiv, ...pubmed];
+  // Search each keyword/phrase separately rather than combining them all
+  // into one giant query — a single long combined query tends to confuse
+  // these search APIs and return unrelated noise. Merging several precise
+  // per-phrase searches gives much better results.
+  const perKeywordResults = await Promise.all(
+    project.keywords.map(async (kw) => {
+      const [s2, arxiv, pubmed] = await Promise.all([
+        searchSemanticScholar(kw, sinceDate).catch(() => []),
+        searchArxiv(kw, sinceDate).catch(() => []),
+        searchPubmed(kw, sinceDate).catch(() => []),
+      ]);
+      return [...s2, ...arxiv, ...pubmed];
+    })
+  );
+  const candidates = perKeywordResults.flat();
 
   // dedupe by normalized title
   const seenTitles = new Set();
